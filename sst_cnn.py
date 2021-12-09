@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding:utf8 -*-
 from itertools import chain
 from typing import Dict
 
@@ -31,9 +33,10 @@ HIDDEN_DIM = 128
 class MyDatasetReader:
     def __init__(self):
         # SentimentTreeBankDataset
+        # SingleIdTokenIndexer` produces an array of shape (num_tokens,)
         self.token_indexer = SingleIdTokenIndexer(token_min_padding_length=5)
         self.reader = StanfordSentimentTreeBankDatasetReader(token_indexers={'tokens': self.token_indexer})
-        self.sampler = sampler = BucketBatchSampler(batch_size = 32, sorting_keys=["tokens"])
+        self.sampler = sampler = BucketBatchSampler(batch_size = 128, sorqting_keys=["tokens"])
         self.train_data_path = 'https://s3.amazonaws.com/realworldnlpbook/data/stanfordSentimentTreebank/trees/train.txt'
         self.dev_data_path = 'https://s3.amazonaws.com/realworldnlpbook/data/stanfordSentimentTreebank/trees/dev.txt'
 
@@ -45,7 +48,7 @@ class MyDatasetReader:
         word_embeddings = BasicTextFieldEmbedder({"tokens": token_embedding})
         return word_embeddings, vocab, train_data_loader, dev_data_loader
 
-# 构建分类器，编码器选用lstm
+# 构建分类器，编码器选用cnn
 class CnnClassifier(Model):
     def __init__(self, embedder, vocab, positive_label: str = '4'):
         super().__init__(vocab)

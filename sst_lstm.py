@@ -25,12 +25,14 @@ from allennlp.data.tokenizers.spacy_tokenizer import SpacyTokenizer
 EMBEDDING_DIM = 128 
 HIDDEN_DIM = 128
 
-# 数据集读取
+# 构建数据读取器
 class MyDatasetReader:
+    # Sentence -> Word ID -> Word Embedding
     def __init__(self):
-        # SentimentTreeBankDataset 
+        # SentimentTreeBankDataset 树结构解析 
         self.reader = StanfordSentimentTreeBankDatasetReader()
-        self.sampler = sampler = BucketBatchSampler(batch_size = 128, sorting_keys=["tokens"])
+        # 获取batch_size
+        self.sampler = BucketBatchSampler(batch_size = 128, sorting_keys=["tokens"])
         self.train_data_path = 'https://s3.amazonaws.com/realworldnlpbook/data/stanfordSentimentTreebank/trees/train.txt'
         self.dev_data_path = 'https://s3.amazonaws.com/realworldnlpbook/data/stanfordSentimentTreebank/trees/dev.txt'
 
@@ -46,6 +48,7 @@ class MyDatasetReader:
 class LstmClassifier(Model):
     def __init__(self, embedder, vocab, positive_label: str = '4'):
         super().__init__(vocab)
+        # word_embeddings
         self.embbedder = embedder
         self.encoder = PytorchSeq2VecWrapper(torch.nn.LSTM(EMBEDDING_DIM, HIDDEN_DIM, batch_first=True))
         self.linear = torch.nn.Linear(in_features=encoder.get_output_dim(),
@@ -59,7 +62,7 @@ class LstmClassifier(Model):
     def forward(self, tokens, label=None):
         # return mask padding matrix (tokens:text_field_tensors)
         mask = get_text_field_mask(tokens)
-        # embedding 
+        # word_embeddings
         embedding = self.embbedder(tokens)
         # encoder means lstm
         encoder_outputs = self.encoder(embedding, mask)
