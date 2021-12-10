@@ -34,9 +34,12 @@ class MyDatasetReader:
     def __init__(self):
         # SentimentTreeBankDataset
         # SingleIdTokenIndexer` produces an array of shape (num_tokens,)
+        # the token indexer:tokens => IDs
+        # why need this?
         self.token_indexer = SingleIdTokenIndexer(token_min_padding_length=5)
         self.reader = StanfordSentimentTreeBankDatasetReader(token_indexers={'tokens': self.token_indexer})
-        self.sampler = sampler = BucketBatchSampler(batch_size = 128, sorqting_keys=["tokens"])
+        # put simliar legnth instances in a batch
+        self.sampler = BucketBatchSampler(batch_size = 32, sorting_keys=["tokens"])
         self.train_data_path = 'https://s3.amazonaws.com/realworldnlpbook/data/stanfordSentimentTreebank/trees/train.txt'
         self.dev_data_path = 'https://s3.amazonaws.com/realworldnlpbook/data/stanfordSentimentTreebank/trees/dev.txt'
 
@@ -53,8 +56,8 @@ class CnnClassifier(Model):
     def __init__(self, embedder, vocab, positive_label: str = '4'):
         super().__init__(vocab)
         self.embbedder = embedder
-        # self.encoder = CnnEncoder(torch.nn.LSTM(EMBEDDING_DIM, HIDDEN_DIM, batch_first=True))
-        self.encoder = CnnEncoder(embedding_dim=EMBEDDING_DIM, num_filters=8, ngram_filter_sizes=(2, 3, 4, 5))
+        # EMBEDDING_DIM.size => num_filter x ngram_filter_sizes 
+        self.encoder = CnnEncoder(embedding_dim=EMBEDDING_DIM, num_filters=32, ngram_filter_sizes=(2, 3, 4, 5))
         self.linear = torch.nn.Linear(in_features=encoder.get_output_dim(),
                                       out_features=vocab.get_vocab_size('labels'))
         positive_index = vocab.get_token_index(positive_label, namespace='labels')
@@ -65,18 +68,18 @@ class CnnClassifier(Model):
 
     def forward(self, tokens, label=None):
         # return mask padding matrix (tokens:text_field_tensors)
-        mask = get_text_field_mask(tokens)
+        mask = get_text_field_mask(tokens) # ([32, 12])
         # embedding 
-        embedding = self.embbedder(tokens)
+        embedding = self.embbedder(tokens) #([32, 12, 128])
         # encoder means lstm
-        encoder_outputs = self.encoder(embedding, mask)
-        logits = self.linear(encoder_outputs)
+        encoder_outputs = self.encoder(embedding, mask)#([32, 128])
+        logits = self.linear(encoder_outputs)#([32, 5])
         output = {"logits": logits}
         if label is not None:
             self.accuracy(logits, label)
             self.f1_measure(logits, label)
             output["loss"] = self.loss_function(logits, label)
-
+        # output Dict includes loss & logits
         return output
 
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
