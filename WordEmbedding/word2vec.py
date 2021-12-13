@@ -19,10 +19,12 @@ class MyDatasetReader:
         self.reader = SkipGramReader()
         
     def data_reader(self):
+        # plain text8 corpus
         text8 = self.reader.read('https://realworldnlpbook.s3.amazonaws.com/data/text8/text8')
-        text8 = list(text8)[:1000000]
+        # to reduce computation, using part of text8
+        # initialize SimpleDataLoader() to call index_with to get word ID
         data_loader = SimpleDataLoader(text8, batch_size = BATCH_SIZE)
-        # build word list which size = 5, one-hot
+        # build word list, min_count means each word lower bound occurence is 5
         # for example : ("the", "dog", "barked", "at", "mailman") => [0, 1, 0, 0, 0] dog is central word
         vocab = Vocabulary.from_instances(text8, min_count = {'token_in': 5, 'token_out': 5})
         # if the size of input is 10000 ,then the size of output is 10000
@@ -36,9 +38,11 @@ class SkipGramModel(Model):
     def __init__(self, vocab, embedding_in):
         super().__init__(vocab)
         self.embedding_in = embedding_in
+        # fake task
         self.linear = torch.nn.Linear(in_features = EMBEDDING_DIM, out_features = vocab.get_vocab_size('token_out'), bias = False)
 
     def forward(self, token_in, token_out):
+        # converts input tensors(word IDs) to word embeddings
         embedded_in = self.embedding_in(token_in)
         logits = self.linear(embedded_in)
         loss = functional.cross_entropy(logits, token_out)
@@ -47,8 +51,9 @@ class SkipGramModel(Model):
 
 def get_related(token: str, embedding: Model, vocab: Vocabulary, num_synonyms: int = 10):
     """Given a token, return a list of top N most similar words to the token."""
-    token_id = vocab.get_token_index(token, 'token_in')
-    token_vec = embedding.weight[token_id]
+    token_id = vocab.get_token_index(token, 'token_in') # example vocab.get_token_index("dog", 'token_in') => 1187 ID 
+    # get skip_gram embedding 
+    token_vec = embedding.weight[token_id] # torch.Size([256])
     cosine = CosineSimilarity(dim = 0)
     sims = Counter()
 
@@ -59,8 +64,10 @@ def get_related(token: str, embedding: Model, vocab: Vocabulary, num_synonyms: i
     return sims.most_common(num_synonyms)
 
 def main():
+    # dataset reader
     dataset_reader = MyDatasetReader()
     vocab, data_loader, embedding_in = dataset_reader.data_reader()
+    # initialize SkipGramModel
     model = SkipGramModel(vocab = vocab, embedding_in = embedding_in)
     optimizer = optim.Adam(model.parameters())
     trainer = GradientDescentTrainer(model = model, optimizer = optimizer, data_loader = data_loader, num_epochs = 5, cuda_device = -1)
@@ -72,5 +79,5 @@ def main():
     print(get_related('one', embedding_in, vocab))
     print(get_related('december', embedding_in, vocab))
 
-if __name__  =  = "__main__":
+if __name__  == "__main__":
     main()
